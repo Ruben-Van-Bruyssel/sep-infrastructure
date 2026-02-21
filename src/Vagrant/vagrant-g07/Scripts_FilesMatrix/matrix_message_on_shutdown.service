@@ -1,0 +1,13 @@
+matrix_message_on[Unit]
+Description=Send Matrix message on Nginx shutdown
+BindsTo=nginx.service
+After=nginx.service
+
+[Service]
+Type=oneshot
+User=root
+ExecStart=/usr/local/bin/send_matrix_message.sh
+RemainAfterExit=yes
+
+[Install]
+WantedBy=nginx.service

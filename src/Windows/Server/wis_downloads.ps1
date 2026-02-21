@@ -1,0 +1,1 @@
+﻿Remove-Item -Path "$env:USERPROFILE\Download\*" -Recurse -Force -ErrorAction SilentlyContinue

@@ -1,0 +1,75 @@
+# Testplan – Extra Website & Load Balancing (Nginx)
+
+- **Auteur testplan:** Ruben Van Bruyssel  
+- **Datum:** 2025-09-03  
+- **Doel:** Valideren dat zowel het hoofd- als het extra serverblok correct werken via de reverse proxy, inclusief HTTPS, load balancing en foutafhandeling.
+
+---
+
+## Test 1: DNS-resolutie
+
+| Stap | Actie | Verwacht resultaat |
+|------|-------|------------------|
+| 1 | Voeg DNS-record toe voor `extra.g07-syndus.internal` | Domeinnaam resolveert naar het IP van de webserver |
+| 2 | Controleer met `ping` of `nslookup` | Domeinnaam wordt correct naar IP vertaald |
+
+---
+
+## Test 2: HTTPS-toegang
+
+| Stap | Actie | Verwacht resultaat |
+|------|-------|------------------|
+| 1 | Surfen naar `https://extra.g07-syndus.internal` | Website laadt correct over HTTPS |
+| 2 | Controleer SSL-certificaat | Certificaat geldig en correct ingesteld |
+| 3 | Controleer HTTP->HTTPS redirect | HTTP-verkeer wordt automatisch naar HTTPS doorgestuurd |
+
+---
+
+## Test 3: Reverse proxy routing & server blocks
+
+| Stap | Actie | Verwacht resultaat |
+|------|-------|------------------|
+| 1 | Controleer hoofdserverblok (`g07-syndus.internal`) | Verkeer naar deze URL gaat naar `backend_main` |
+| 2 | Controleer extra serverblok (`extra.g07-syndus.internal`) | Verkeer naar deze URL gaat naar `backend_extra` |
+| 3 | Controleer isolatie | Verkeer naar het ene blok beïnvloedt het andere niet |
+| 4 | Controleer proxy headers | `X-Real-IP`, `X-Forwarded-For` en `Host` worden correct doorgegeven |
+
+---
+
+## Test 4: Load balancing
+
+| Stap | Actie | Verwacht resultaat |
+|------|-------|------------------|
+| 1 | Verkeer naar `backend_main` en `backend_extra` genereren | Verkeer wordt verdeeld over beide servers |
+| 2 | Eén backend server uitschakelen | Andere server blijft de requests afhandelen (failover) |
+| 3 | Controleer consistentie | Sessies / stateful data correct afgehandeld of sticky sessions ingesteld |
+
+---
+
+## Test 5: Foutafhandeling
+
+| Stap | Actie | Verwacht resultaat |
+|------|-------|------------------|
+| 1 | Backend server offline nemen | Bij foutcode 502/503/504 toont de browser `/custom_50x.html` |
+| 2 | Controleer interne locatie | `/custom_50x.html` kan niet direct extern worden opgevraagd |
+
+---
+
+## Test 6: Logging
+
+| Stap | Actie | Verwacht resultaat |
+|------|-------|------------------|
+| 1 | Controleer access log | Requests per site correct gelogd |
+| 2 | Controleer error log | Fouten per site correct gelogd |
+
+---
+
+## Verwachte resultaten
+
+- DNS-resolutie voor beide sites werkt correct  
+- HTTPS is correct ingesteld met geldige certificaten  
+- Reverse proxy routeert verkeer naar de juiste upstream servers (`backend_main` en `backend_extra`)  
+- Load balancing verdeelt verkeer en biedt failover  
+- Foutpagina `/custom_50x.html` wordt correct weergegeven bij backend-fouten  
+- Logging per site correct en gescheiden  
+- Beide server blocks functioneren onafhankelijk en veilig

@@ -1,0 +1,41 @@
+version 16.9
+no service timestamps log datetime msec
+no service timestamps debug datetime msec
+no service password-encryption
+!
+hostname R1
+!
+ip dhcp excluded-address 192.168.151.2 192.168.151.99
+ip dhcp excluded-address 192.168.151.201 192.168.151.254
+!
+ip dhcp pool LAN_POOL
+ network 192.168.151.0 255.255.255.0
+ default-router 192.168.151.2
+ ip name-server 192.168.151.7
+!
+no ip domain-lookup
+!
+spanning-tree mode pvst
+!
+interface GigabitEthernet0/0/0
+ ip address 192.168.151.2 255.255.255.0
+ ip nat inside
+ no shutdown
+!
+interface GigabitEthernet0/0/1
+ ip address dhcp
+ ip nat outside
+ no shutdown
+!
+ip nat inside source list 1 interface GigabitEthernet0/0/1 overload
+ip classless
+ip route 0.0.0.0 0.0.0.0 dhcp
+!
+access-list 1 permit 192.168.151.0 0.0.0.255
+!
+line con 0
+line aux 0
+line vty 0 4
+ login
+!
+end

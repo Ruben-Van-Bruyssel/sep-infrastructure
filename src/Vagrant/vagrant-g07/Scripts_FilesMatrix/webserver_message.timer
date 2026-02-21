@@ -1,0 +1,9 @@
+[Unit]
+Description=Run Matrix notification script at specific times
+
+[Timer]
+OnCalendar=*-*-* *:*:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target

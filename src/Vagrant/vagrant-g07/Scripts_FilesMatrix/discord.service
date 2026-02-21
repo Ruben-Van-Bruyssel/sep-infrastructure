@@ -1,0 +1,14 @@
+[Unit]
+Description=Mautrix-Discord Bridge service
+Documentation=https://github.com/mautrix/discord
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/mautrix-discord
+ExecStart=/opt/mautrix-discord/mautrix-discord
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target

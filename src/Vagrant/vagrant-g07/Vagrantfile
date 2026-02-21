@@ -1,0 +1,108 @@
+# -*- mode: ruby -*-
+# Vagrantfile for multi-host provisioning
+# Author: Bert Van Vreckem <https://github.com/bertvv>
+
+require 'rbconfig'
+require 'yaml'
+
+# Set default LC_ALL for all BOXES
+ENV["LC_ALL"] = "en_US.UTF-8"
+
+# Set your default base box here
+DEFAULT_BASE_BOX = 'bento/almalinux-9'
+
+# Directory containing VM provisioning scripts
+PROVISIONING_SCRIPT_DIR = 'provisioning/'
+
+#
+# No changes needed below this point
+#
+
+VAGRANTFILE_API_VERSION = '2'
+PROJECT_NAME = '/' + File.basename(Dir.getwd)
+
+# Load the hosts from the vagrant-hosts.yml file
+hosts = YAML.load_file('vagrant-hosts.yml')
+
+# Helper functions
+def windows_host?
+  Vagrant::Util::Platform.windows?
+end
+
+# Set options for network interface configuration
+def network_options(host)
+  options = {}
+
+  # Configure IP settings if defined in the YAML
+  if host.key?('ip')
+    options[:ip] = host['ip']
+    options[:netmask] = host['netmask'] ||= '255.255.255.0'
+  else
+    options[:type] = 'dhcp'
+  end
+
+  # Configure MAC address and auto_config options if specified
+  options[:mac] = host['mac'].gsub(/[-:]/, '') if host.key?('mac')
+  options[:auto_config] = host['auto_config'] if host.key?('auto_config')
+  options[:virtualbox__intnet] = true if host.key?('intnet') && host['intnet']
+
+  options
+end
+
+def custom_synced_folders(vm, host)
+  # Add the Cisco shared folder
+  vm.synced_folder "./Cisco", "/vagrant/Cisco", create: true
+
+  # Add Scripts_FilesMatrix folder
+  vm.synced_folder "./Scripts_FilesMatrix", "/vagrant/Scripts_FilesMatrix", create: true
+
+  # Add additional synced folders if defined in the YAML
+  if host.key?('synced_folders')
+    host['synced_folders'].each do |folder|
+      vm.synced_folder folder['src'], folder['dest'], folder['options']
+    end
+  end
+end
+
+# Adds forwarded ports to the Vagrant VM
+def forwarded_ports(vm, host)
+  if host.key?('forwarded_ports')
+    host['forwarded_ports'].each do |port|
+      vm.network "forwarded_port", guest: port['guest'], host: port['host']
+    end
+  end
+end
+
+
+
+Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
+  hosts.each do |host|
+    config.vm.define host['name'] do |node|
+      node.vm.box = host['box'] ||= DEFAULT_BASE_BOX
+      node.vm.box_url = host['box_url'] if host.key? 'box_url'
+      node.vm.hostname = host['name']
+      node.vm.network :private_network, **network_options(host)
+      custom_synced_folders(node.vm, host)
+      forwarded_ports(node.vm, host)
+
+      # SSH settings
+      node.ssh.username = host['ssh_username'] if host.key? 'ssh_username'
+      node.ssh.password = host['ssh_password'] if host.key? 'ssh_password'
+
+      # Provider settings (for VirtualBox)
+      node.vm.provider :virtualbox do |vb|
+        vb.memory = host['memory'] if host.key? 'memory'
+        vb.cpus = host['cpus'] if host.key? 'cpus'
+        vb.customize ['modifyvm', :id, '--groups', PROJECT_NAME]
+      end
+
+      # Provisioning script if it exists
+      provisioning_script = PROVISIONING_SCRIPT_DIR + host['name'] + '.sh'
+      if File.exist?(provisioning_script)
+        node.vm.provision 'shell', path: provisioning_script
+      else
+        node.vm.post_up_message = "WARNING! No provisioning script found for #{host['name']}"
+      end
+    end
+  end
+end
